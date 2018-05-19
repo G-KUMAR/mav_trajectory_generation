@@ -20,13 +20,14 @@
 
 #include <mav_trajectory_generation_ros/trajectory_sampler_node.h>
 
-TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
-                                             const ros::NodeHandle& nh_private)
+TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle &nh,
+                                             const ros::NodeHandle &nh_private)
     : nh_(nh),
       nh_private_(nh_private),
       publish_whole_trajectory_(false),
       dt_(0.01),
-      current_sample_time_(0.0) {
+      current_sample_time_(0.0)
+{
   nh_private_.param("publish_whole_trajectory", publish_whole_trajectory_,
                     publish_whole_trajectory_);
   nh_private_.param("dt", dt_, dt_);
@@ -47,22 +48,29 @@ TrajectorySamplerNode::TrajectorySamplerNode(const ros::NodeHandle& nh,
 TrajectorySamplerNode::~TrajectorySamplerNode() { publish_timer_.stop(); }
 
 void TrajectorySamplerNode::pathSegmentsCallback(
-    const planning_msgs::PolynomialTrajectory4D& segments_message) {
-  if (segments_message.segments.empty()) {
+    const planning_msgs::PolynomialTrajectory4D &segments_message)
+{
+  std::cout<<segments_message.segments.size()<<std::endl;
+  if (segments_message.segments.empty())
+  {
     ROS_WARN("Trajectory sampler: received empty waypoint message");
     return;
-  } else {
+  }
+  else
+  {
     ROS_INFO("Trajectory sampler: received %lu waypoints",
              segments_message.segments.size());
   }
 
   bool success = mav_trajectory_generation::polynomialTrajectoryMsgToTrajectory(
       segments_message, &trajectory_);
-  if (!success) {
+  if (!success)
+  {
     return;
   }
 
-  if (publish_whole_trajectory_) {
+  if (publish_whole_trajectory_)
+  {
     // Publish the entire trajectory at once.
     mav_msgs::EigenTrajectoryPoint::Vector flat_states;
     mav_trajectory_generation::sampleWholeTrajectory(trajectory_, dt_,
@@ -70,7 +78,9 @@ void TrajectorySamplerNode::pathSegmentsCallback(
     trajectory_msgs::MultiDOFJointTrajectory msg_pub;
     msgMultiDofJointTrajectoryFromEigen(flat_states, &msg_pub);
     command_pub_.publish(msg_pub);
-  } else {
+  }
+  else
+  {
     publish_timer_.start();
     current_sample_time_ = 0.0;
     start_time_ = ros::Time::now();
@@ -78,30 +88,37 @@ void TrajectorySamplerNode::pathSegmentsCallback(
 }
 
 bool TrajectorySamplerNode::stopSamplingCallback(
-    std_srvs::EmptyRequest& request, std_srvs::EmptyResponse& response) {
+    std_srvs::EmptyRequest &request, std_srvs::EmptyResponse &response)
+{
   publish_timer_.stop();
   return true;
 }
 
-void TrajectorySamplerNode::commandTimerCallback(const ros::TimerEvent&) {
-  if (current_sample_time_ <= trajectory_.getMaxTime()) {
+void TrajectorySamplerNode::commandTimerCallback(const ros::TimerEvent &)
+{
+  if (current_sample_time_ <= trajectory_.getMaxTime())
+  {
     trajectory_msgs::MultiDOFJointTrajectory msg;
     mav_msgs::EigenTrajectoryPoint flat_state;
     bool success = mav_trajectory_generation::sampleTrajectoryAtTime(
         trajectory_, current_sample_time_, &flat_state);
-    if (!success) {
+    if (!success)
+    {
       publish_timer_.stop();
     }
     mav_msgs::msgMultiDofJointTrajectoryFromEigen(flat_state, &msg);
     msg.points[0].time_from_start = ros::Duration(current_sample_time_);
     command_pub_.publish(msg);
     current_sample_time_ += dt_;
-  } else {
+  }
+  else
+  {
     publish_timer_.stop();
   }
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
   ros::init(argc, argv, "trajectory_sampler_node");
   ros::NodeHandle nh("");
   ros::NodeHandle nh_private("~");

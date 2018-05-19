@@ -32,7 +32,8 @@
 #include "mav_trajectory_generation/trajectory.h"
 #include "mav_trajectory_generation/vertex.h"
 
-namespace mav_trajectory_generation {
+namespace mav_trajectory_generation
+{
 
 // Implements the unconstrained optimization of paths consisting of
 // polynomial segments as described in [1]
@@ -43,14 +44,18 @@ namespace mav_trajectory_generation {
 // Polynomial coefficients are stored with increasing powers,
 // i.e. c_0 + c_1*t ... c_{N-1} * t^{N-1}.
 template <int _N = 10>
-class PolynomialOptimization {
+class PolynomialOptimization
+{
   static_assert(_N % 2 == 0, "The number of coefficients has to be even.");
 
- public:
-  enum { N = _N };
+public:
+  enum
+  {
+    N = _N
+  };
   static constexpr int kHighestDerivativeToOptimize = N / 2 - 1;
   typedef Eigen::Matrix<double, N, N> SquareMatrix;
-  typedef std::vector<SquareMatrix, Eigen::aligned_allocator<SquareMatrix> >
+  typedef std::vector<SquareMatrix, Eigen::aligned_allocator<SquareMatrix>>
       SquareMatrixVector;
 
   // Sets up the optimization problem for the specified dimension.
@@ -65,7 +70,7 @@ class PolynomialOptimization {
   // Input: derivative_to_optimize = Specifies the derivative of which the
   // cost is optimized.
   bool setupFromVertices(
-      const Vertex::Vector& vertices, const std::vector<double>& segment_times,
+      const Vertex::Vector &vertices, const std::vector<double> &segment_times,
       int derivative_to_optimize = kHighestDerivativeToOptimize);
 
   // Sets up the optimization problem from a vector of positions and a
@@ -76,17 +81,17 @@ class PolynomialOptimization {
   // positions and the final position.
   // Input: times = Vector containing the time between two positions. Thus,
   // its size is size(positions) - 1.
-  bool setupFromPositons(const std::vector<double>& positions,
-                         const std::vector<double>& times);
+  bool setupFromPositons(const std::vector<double> &positions,
+                         const std::vector<double> &times);
 
   // Wrapper that inverts the mapping matrix (A in [1]) to take advantage
   // of its structure.
   // Input: A matrix
   // Output: Ai inverse of the A matrix
-  static void invertMappingMatrix(const SquareMatrix& mapping_matrix,
-                                  SquareMatrix* inverse_mapping_matrix);
+  static void invertMappingMatrix(const SquareMatrix &mapping_matrix,
+                                  SquareMatrix *inverse_mapping_matrix);
 
-  static void setupMappingMatrix(double segment_time, SquareMatrix* A);
+  static void setupMappingMatrix(double segment_time, SquareMatrix *A);
 
   // Computes the cost in the derivative that was specified during
   // setupFromVertices().
@@ -98,7 +103,7 @@ class PolynomialOptimization {
   // the number of vertices that was initially passed during the problem setup.
   // This recomputes all cost- and inverse mapping block-matrices and is meant
   // to be called during non-linear optimization procedures.
-  void updateSegmentTimes(const std::vector<double>& segment_times);
+  void updateSegmentTimes(const std::vector<double> &segment_times);
 
   // Solves the linear optimization problem according to [1].
   // The solver is re-used for every dimension, which means:
@@ -110,7 +115,8 @@ class PolynomialOptimization {
   // Returns the trajectory created by the optimization.
   // Only valid after solveLinear() is called. This is the preferred external
   // interface for getting information back out of the solver.
-  void getTrajectory(Trajectory* trajectory) const {
+  void getTrajectory(Trajectory *trajectory) const
+  {
     CHECK_NOTNULL(trajectory);
     trajectory->setSegments(segments_);
   }
@@ -137,8 +143,8 @@ class PolynomialOptimization {
   // were found by Jenkins-Traub.
   template <int Derivative>
   static bool computeSegmentMaximumMagnitudeCandidates(
-      const Segment& segment, double t_start, double t_stop,
-      std::vector<double>* candidates);
+      const Segment &segment, double t_start, double t_stop,
+      std::vector<double> *candidates);
 
   // Computes the candidates for the maximum magnitude of a single
   // segment in the specified derivative.
@@ -151,8 +157,8 @@ class PolynomialOptimization {
   // Output: candidates = Vector containing the candidate times for a maximum.
   template <int Derivative>
   static void computeSegmentMaximumMagnitudeCandidatesBySampling(
-      const Segment& segment, double t_start, double t_stop,
-      double sampling_interval, std::vector<double>* candidates);
+      const Segment &segment, double t_start, double t_stop,
+      double sampling_interval, std::vector<double> *candidates);
 
   // Computes the global maximum of the magnitude of the path in the
   // specified derivative.
@@ -164,34 +170,39 @@ class PolynomialOptimization {
   //                        Optional, can be set to nullptr if not needed.
   // Output: return = The global maximum of the path.
   template <int Derivative>
-  Extremum computeMaximumOfMagnitude(std::vector<Extremum>* candidates) const;
+  Extremum computeMaximumOfMagnitude(std::vector<Extremum> *candidates) const;
 
-  void getVertices(Vertex::Vector* vertices) const {
+  void getVertices(Vertex::Vector *vertices) const
+  {
     CHECK_NOTNULL(vertices);
     *vertices = vertices_;
   }
 
   // Only for internal use -- always use getTrajectory() instead if you can!
-  void getSegments(Segment::Vector* segments) const {
+  void getSegments(Segment::Vector *segments) const
+  {
     CHECK_NOTNULL(segments);
     *segments = segments_;
   }
 
-  void getSegmentTimes(std::vector<double>* segment_times) const {
+  void getSegmentTimes(std::vector<double> *segment_times) const
+  {
     CHECK(segment_times != nullptr);
     *segment_times = segment_times_;
   }
 
   void getFreeConstraints(
-      std::vector<Eigen::VectorXd>* free_constraints) const {
+      std::vector<Eigen::VectorXd> *free_constraints) const
+  {
     CHECK(free_constraints != nullptr);
     *free_constraints = free_constraints_compact_;
   }
 
-  void setFreeConstraints(const std::vector<Eigen::VectorXd>& free_constraints);
+  void setFreeConstraints(const std::vector<Eigen::VectorXd> &free_constraints);
 
   void getFixedConstraints(
-      std::vector<Eigen::VectorXd>* fixed_constraints) const {
+      std::vector<Eigen::VectorXd> *fixed_constraints) const
+  {
     CHECK(fixed_constraints != nullptr);
     *fixed_constraints = fixed_constraints_compact_;
   }
@@ -202,7 +213,7 @@ class PolynomialOptimization {
   // Input: t = time of evaluation
   // Input: derivative used to compute the cost
   static void computeQuadraticCostJacobian(int derivative, double t,
-                                           SquareMatrix* cost_jacobian);
+                                           SquareMatrix *cost_jacobian);
 
   size_t getDimension() const { return dimension_; }
   size_t getNumberSegments() const { return n_segments_; }
@@ -212,18 +223,18 @@ class PolynomialOptimization {
   int getDerivativeToOptimize() const { return derivative_to_optimize_; }
 
   // Accessor functions for internal matrices.
-  void getAInverse(Eigen::MatrixXd* A_inv) const;
-  void getM(Eigen::MatrixXd* M) const;
-  void getR(Eigen::MatrixXd* R) const;
+  void getAInverse(Eigen::MatrixXd *A_inv) const;
+  void getM(Eigen::MatrixXd *M) const;
+  void getR(Eigen::MatrixXd *R) const;
   // Extras not directly used in the standard optimization:
-  void getA(Eigen::MatrixXd* A) const;
-  void getMpinv(Eigen::MatrixXd* M_pinv) const;  // Pseudo-inverse of M.
+  void getA(Eigen::MatrixXd *A) const;
+  void getMpinv(Eigen::MatrixXd *M_pinv) const; // Pseudo-inverse of M.
 
-  void printReorderingMatrix(std::ostream& stream) const;
+  void printReorderingMatrix(std::ostream &stream) const;
 
- private:
+private:
   // Constructs the sparse R (cost) matrix.
-  void constructR(Eigen::SparseMatrix<double>* R) const;
+  void constructR(Eigen::SparseMatrix<double> *R) const;
 
   // Sets up the matrix (C in [1]) that reorders constraints for the
   // optimization problem.
@@ -275,17 +286,24 @@ class PolynomialOptimization {
 };
 
 // Constraint class that aggregates all constraints from incoming Vertices.
-struct Constraint {
-  inline bool operator<(const Constraint& rhs) const {
-    if (vertex_idx < rhs.vertex_idx) return true;
-    if (rhs.vertex_idx < vertex_idx) return false;
+struct Constraint
+{
+  inline bool operator<(const Constraint &rhs) const
+  {
+    if (vertex_idx < rhs.vertex_idx)
+      return true;
+    if (rhs.vertex_idx < vertex_idx)
+      return false;
 
-    if (constraint_idx < rhs.constraint_idx) return true;
-    if (rhs.constraint_idx < constraint_idx) return false;
+    if (constraint_idx < rhs.constraint_idx)
+      return true;
+    if (rhs.constraint_idx < constraint_idx)
+      return false;
     return false;
   }
 
-  inline bool operator==(const Constraint& rhs) const {
+  inline bool operator==(const Constraint &rhs) const
+  {
     return vertex_idx == rhs.vertex_idx && constraint_idx == rhs.constraint_idx;
   }
 
@@ -294,8 +312,8 @@ struct Constraint {
   Vertex::ConstraintValue value;
 };
 
-}  // namespace mav_trajectory_generation
+} // namespace mav_trajectory_generation
 
 #include "mav_trajectory_generation/impl/polynomial_optimization_linear_impl.h"
 
-#endif  // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_
+#endif // MAV_TRAJECTORY_GENERATION_POLYNOMIAL_OPTIMIZATION_LINEAR_H_

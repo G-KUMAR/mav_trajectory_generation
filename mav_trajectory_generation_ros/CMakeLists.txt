@@ -28,6 +28,11 @@ cs_add_executable(trajectory_sampler_node
 )
 target_link_libraries(trajectory_sampler_node ${PROJECT_NAME})
 
+cs_add_executable(test_node
+  src/test_node.cpp
+)
+target_link_libraries(test_node ${PROJECT_NAME})
+
 #########
 # TESTS #
 #########
