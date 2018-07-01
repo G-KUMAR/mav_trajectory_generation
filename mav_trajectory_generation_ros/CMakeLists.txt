@@ -33,6 +33,12 @@ cs_add_executable(test_node
 )
 target_link_libraries(test_node ${PROJECT_NAME})
 
+
+cs_add_executable(waypoint_node
+  src/waypoint_node.cpp
+)
+target_link_libraries(waypoint_node ${PROJECT_NAME})
+
 #########
 # TESTS #
 #########
