@@ -13,7 +13,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "waypoint_node");
     ros::NodeHandle n;
-    ros::Subscriber odo_sub = n.subscribe<geometry_msgs::PoseArray>("/way", 10, waycb);
+    ros::Subscriber odo_sub = n.subscribe<geometry_msgs::PoseArray>("/waypoints", 10, waycb);
     ros::Publisher vis_pub = n.advertise<visualization_msgs::MarkerArray>("trajectory_traject", 10);
     // rate
     ros::Rate sleep_rate(1);
@@ -47,14 +47,12 @@ int main(int argc, char **argv)
 
         if (way_.poses.size() > 0)
         {
-        std::cout << "debug=" << way_.poses[way_.poses.size() - 1].position.y << "," << way_.poses.size() - 1 << std::endl;
-      for(int ii=1;ii < way_.poses.size()-1; ii++ )
-{
-	  middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[ii].position.x, way_.poses[ii].position.y, 0));
-        vertices.push_back(middle);
-}
-        
-       
+                for(int ii=1;ii < way_.poses.size()-1; ii++ )
+                {
+                std::cout << "debug=" << ii << "," << way_.poses.size() - 1 << std::endl;
+	                middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[ii].position.x, way_.poses[ii].position.y, 0));
+                        vertices.push_back(middle);
+                }
         }
 
 /*        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(0., .6, 1));
@@ -69,8 +67,9 @@ int main(int argc, char **argv)
 	middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(0., 1.7, 1));
         vertices.push_back(middle);
 */
-if(way_.poses.size()>0)
+        if(way_.poses.size()>0)
         end.makeStartOrEnd(Eigen::Vector3d(way_.poses[way_.poses.size() - 1].position.x, way_.poses[way_.poses.size() - 1].position.y,0), derivative_to_optimize);
+        else
         end.makeStartOrEnd(Eigen::Vector3d(0,5,1),derivative_to_optimize);
         vertices.push_back(end);
         // curve 2 in paper
@@ -109,7 +108,7 @@ if(way_.poses.size()>0)
 
         //compute the segment times
         std::vector<double> segment_times;
-        const double v_max = 1.0;
+        const double v_max = 0.2;
         const double a_max = 3.0;
         const double magic_fabian_constant = 6.5; // A tuning parameter
         segment_times = estimateSegmentTimes(vertices, v_max, a_max, magic_fabian_constant);
