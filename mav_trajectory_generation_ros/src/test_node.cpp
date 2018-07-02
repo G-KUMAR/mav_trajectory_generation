@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 
         if (way_.poses.size() > 0)
         {
-        std::cout << "debug=" << way_.poses[way_.poses.size() - 1].position.y << "," << way_.poses.size() - 1 << std::endl;
+        //std::cout << "debug=" << way_.poses[way_.poses.size() - 1].position.y << "," << way_.poses.size() - 1 << std::endl;
         middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[way_.poses.size()/2 - 1].position.x, way_.poses[way_.poses.size()/2 - 1].position.y, 0));
         vertices.push_back(middle);
 
