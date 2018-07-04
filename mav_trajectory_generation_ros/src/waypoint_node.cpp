@@ -2,8 +2,15 @@
 #include <mav_trajectory_generation/trajectory.h>
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <geometry_msgs/PoseArray.h>
+#include <math.h>
+#include <tf/transform_datatypes.h>
 
-geometry_msgs::PoseArray way_;
+#define PI 3.14159265
+
+geometry_msgs::PoseArray way_, traj_with_yaw;
+geometry_msgs::Pose traj_pose;
+tf::Quaternion q;
+
 void waycb(const geometry_msgs::PoseArray::ConstPtr &msg)
 {
     way_ = *msg;
@@ -16,14 +23,14 @@ int main(int argc, char **argv)
 
     ros::Subscriber way_sub = n.subscribe<geometry_msgs::PoseArray>("/waypoints", 10, waycb);
 
-    ros::Publisher vis_pub = n.advertise<visualization_msgs::MarkerArray>("trajectory_traject", 10);
+    ros::Publisher vis_pub = n.advertise<visualization_msgs::MarkerArray>("/trajectory_vis", 10);
+    ros::Publisher traj_with_yaw_pub = n.advertise<geometry_msgs::PoseArray>("/trajectory_with_yaw", 10);
+    
 
     ros::Rate sleep_rate(10);
 
     while (ros::ok())
     {   
-        
-
         mav_trajectory_generation::Vertex::Vector vertices;
         const int dimension = 3;
         const int derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
@@ -37,7 +44,8 @@ int main(int argc, char **argv)
             start.makeStartOrEnd(Eigen::Vector3d(way_.poses[0].position.x, way_.poses[0].position.y,0), derivative_to_optimize);
             vertices.push_back(start);
 
-                std::cout << "debug="  << "," << way_.poses.size() << std::endl;
+            // std::cout << "debug="  << "," << way_.poses.size() << std::endl;
+            
             for(int ii=1;ii < way_.poses.size()-1; ii++ )
             {
     	        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[ii].position.x, way_.poses[ii].position.y, 0));
@@ -53,7 +61,6 @@ int main(int argc, char **argv)
             const double a_max = 3.0;
             const double magic_fabian_constant = 6.5; // A tuning parameter
             segment_times = estimateSegmentTimes(vertices, v_max, a_max, magic_fabian_constant);
-
 
             //N denotes the number of coefficients of the underlying polynomial
             //N has to be even.
@@ -74,7 +81,8 @@ int main(int argc, char **argv)
             
             mav_trajectory_generation::Trajectory trajectory;
             opt.getTrajectory(&trajectory);
-            
+            mav_trajectory_generation::Trajectory x_trajectory = trajectory.getTrajectoryWithSingleDimension(1);
+
             //evaluating the trajectory at particular instances of time
             // Single sample:
             double sampling_time = 2.0;
@@ -95,19 +103,45 @@ int main(int argc, char **argv)
             visualization_msgs::MarkerArray markers;
             double distance = 1.6; // Distance by which to seperate additional markers. Set 0.0 to disable.
             std::string frame_id = "world";
+            traj_with_yaw.header.stamp = ros::Time::now();
+            traj_with_yaw.header.frame_id = "world";
             // From Trajectory class:
             mav_trajectory_generation::drawMavTrajectory(trajectory, distance, frame_id, &markers);
 
+            float traj_marker_size = markers.markers.size();
+            float trajectory_size = markers.markers[traj_marker_size - 1].points.size();
 
-        // for (int i = 0; i < segments.size(); i++)
-        // {
-        //     std::cout << i << "," << segments[i] << "," <<  segments.size() << std::endl;
-        // }
-        // std::cout << result[1] << std::endl;
-        
+            for(int ii=0; ii < trajectory_size; ii++)
+            {
+                traj_pose.position.x = markers.markers[traj_marker_size - 1].points[ii].x;
+                traj_pose.position.y = markers.markers[traj_marker_size - 1].points[ii].y;
+                if(ii<trajectory_size-1)
+                {
+                    float y_diff = (markers.markers[traj_marker_size - 1].points[ii+1].y - markers.markers[traj_marker_size - 1].points[ii].y);
+                    float x_diff = (markers.markers[traj_marker_size - 1].points[ii+1].x - markers.markers[traj_marker_size - 1].points[ii].x);
+                    float yaw = atan2(y_diff,x_diff);
+                    q.setRPY(0, 0, yaw);
+                }
+                else
+                {
+                    float y_diff = (markers.markers[traj_marker_size - 1].points[ii].y - markers.markers[traj_marker_size - 1].points[ii-1].y);
+                    float x_diff = (markers.markers[traj_marker_size - 1].points[ii].x - markers.markers[traj_marker_size - 1].points[ii-1].x);
+                    float yaw = atan2(y_diff,x_diff);
+                    q.setRPY(0, 0, yaw);
 
-        vis_pub.publish(markers);
-    }
+                }
+
+                
+                traj_pose.orientation.z = q.z();
+                traj_pose.orientation.w = q.w();
+                //yaw set
+                traj_with_yaw.poses.push_back(traj_pose);
+            }
+            
+            vis_pub.publish(markers);
+            traj_with_yaw_pub.publish(traj_with_yaw);
+            traj_with_yaw.poses.clear();
+        }
         ros::spinOnce();
         vertices.clear();
         sleep_rate.sleep();
