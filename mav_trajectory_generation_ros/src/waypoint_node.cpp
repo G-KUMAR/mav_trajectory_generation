@@ -2,16 +2,17 @@
 #include <mav_trajectory_generation/trajectory.h>
 #include <mav_trajectory_generation_ros/ros_visualization.h>
 #include <geometry_msgs/PoseArray.h>
+#include <nav_msgs/Path.h>
 #include <math.h>
 #include <tf/transform_datatypes.h>
 
 #define PI 3.14159265
-
-geometry_msgs::PoseArray way_, traj_with_yaw;
+nav_msgs::Path way_;
+geometry_msgs::PoseArray traj_with_yaw;
 geometry_msgs::Pose traj_pose;
 tf::Quaternion q;
 
-void waycb(const geometry_msgs::PoseArray::ConstPtr &msg)
+void waycb(const nav_msgs::Path::ConstPtr &msg)
 {
     way_ = *msg;
 }
@@ -21,7 +22,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "waypoint_node");
     ros::NodeHandle n;
 
-    ros::Subscriber way_sub = n.subscribe<geometry_msgs::PoseArray>("/waypoints", 10, waycb);
+    ros::Subscriber way_sub = n.subscribe("/costmap_node/planner/plan", 10, waycb);
 
     ros::Publisher vis_pub = n.advertise<visualization_msgs::MarkerArray>("/trajectory_vis", 10);
     ros::Publisher traj_with_yaw_pub = n.advertise<geometry_msgs::PoseArray>("/trajectory_with_yaw", 10);
@@ -33,7 +34,7 @@ int main(int argc, char **argv)
     {   
         mav_trajectory_generation::Vertex::Vector vertices;
         const int dimension = 3;
-        const int derivative_to_optimize = mav_trajectory_generation::derivative_order::ACCELERATION;
+        const int derivative_to_optimize = mav_trajectory_generation::derivative_order::ANGULAR_ACCELERATION;
         mav_trajectory_generation::Vertex start(dimension), middle(dimension), end(dimension);
 
         // Time count
@@ -41,18 +42,18 @@ int main(int argc, char **argv)
 
         if(way_.poses.size()>0)
         {
-            start.makeStartOrEnd(Eigen::Vector3d(way_.poses[0].position.x, way_.poses[0].position.y,0), derivative_to_optimize);
+            start.makeStartOrEnd(Eigen::Vector3d(way_.poses[0].pose.position.x, way_.poses[0].pose.position.y,0), derivative_to_optimize);
             vertices.push_back(start);
 
             // std::cout << "debug="  << "," << way_.poses.size() << std::endl;
             
-            for(int ii=1;ii < way_.poses.size()-1; ii++ )
+            for(int ii=1;ii < way_.poses.size()-1; ii = ii+10 )
             {
-    	        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[ii].position.x, way_.poses[ii].position.y, 0));
+    	        middle.addConstraint(mav_trajectory_generation::derivative_order::POSITION, Eigen::Vector3d(way_.poses[ii].pose.position.x, way_.poses[ii].pose.position.y, 0));
                 vertices.push_back(middle);
             }
 
-            end.makeStartOrEnd(Eigen::Vector3d(way_.poses[way_.poses.size() - 1].position.x, way_.poses[way_.poses.size() - 1].position.y,0), derivative_to_optimize);
+            end.makeStartOrEnd(Eigen::Vector3d(way_.poses[way_.poses.size() - 1].pose.position.x, way_.poses[way_.poses.size() - 1].pose.position.y,0), derivative_to_optimize);
             vertices.push_back(end);
         
             //compute the segment times
